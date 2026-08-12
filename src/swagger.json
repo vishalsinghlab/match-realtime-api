@@ -1,0 +1,512 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Match Realtime API",
+    "version": "1.0.0",
+    "description": "API documentation for the Match Realtime sports score platform. Includes authentication, match fixture management, admin socket configurations, and system health endpoints."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Local Development Server"
+    }
+  ],
+  "security": [
+    {
+      "cookieAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "User authentication & session management"
+    },
+    {
+      "name": "Matches",
+      "description": "Sports match fixtures and metadata"
+    },
+    {
+      "name": "Admin",
+      "description": "Dynamic global and fixture socket streaming settings"
+    },
+    {
+      "name": "System",
+      "description": "System health and status endpoints"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Authenticate user and issue HTTP session cookie",
+        "operationId": "loginUser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful. Returns user profile and sets HTTP-only session cookie.",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string",
+                  "example": "session=5a6f8b...; Path=/; HttpOnly; SameSite=Lax"
+                },
+                "description": "Authentication session token cookie"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/UserSession"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout user and invalidate session",
+        "operationId": "logoutUser",
+        "responses": {
+          "200": {
+            "description": "Logout successful. Clears session cookie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Logged out successfully"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get current authenticated user session from cookie",
+        "operationId": "getCurrentSession",
+        "responses": {
+          "200": {
+            "description": "Current active session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "example": "66ba3a1f9d2..."
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["ADMIN", "USER"],
+                          "example": "ADMIN"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": {
+                      "type": "boolean",
+                      "example": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches": {
+      "get": {
+        "tags": ["Matches"],
+        "summary": "Retrieve list of all match fixtures",
+        "operationId": "getMatches",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List of sports matches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Match"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Matches"],
+        "summary": "Create a new match fixture (Admin required)",
+        "operationId": "createMatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Match fixture created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Match"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Forbidden - Requires ADMIN role"
+          }
+        }
+      }
+    },
+    "/matches/{id}": {
+      "get": {
+        "tags": ["Matches"],
+        "summary": "Get match fixture metadata by ID",
+        "operationId": "getMatchById",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "MongoDB Match Object ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Match details retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Match"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Match fixture not found"
+          }
+        }
+      }
+    },
+    "/admin/settings/global": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get global default socket streaming configuration (Admin required)",
+        "operationId": "getGlobalSettings",
+        "responses": {
+          "200": {
+            "description": "Global socket settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalSettings"
+                }
+              }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Forbidden - Requires ADMIN role" }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Update global default socket configuration & broadcast hot-reload event (Admin required)",
+        "operationId": "updateGlobalSettings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlobalSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Global settings updated and broadcasted via Redis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalSettings"
+                }
+              }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Forbidden - Requires ADMIN role" }
+        }
+      }
+    },
+    "/admin/matches/{matchId}/settings": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get match-specific socket streaming settings (Admin required)",
+        "operationId": "getMatchSettings",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "description": "Match Object ID",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Match socket configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchSettings"
+                }
+              }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Forbidden - Requires ADMIN role" }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Update match-specific socket settings & broadcast hot-reload event (Admin required)",
+        "operationId": "updateMatchSettings",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "description": "Match Object ID",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match settings updated and broadcasted via Redis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchSettings"
+                }
+              }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Forbidden - Requires ADMIN role" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Check backend API health status",
+        "operationId": "getHealth",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API is online",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Match Realtime API is running" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "HTTP-only session cookie set after calling /api/auth/login"
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "admin" },
+          "password": { "type": "string", "example": "admin123" }
+        }
+      },
+      "UserSession": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "66ba3a1f9d2..." },
+          "username": { "type": "string", "example": "admin" },
+          "role": { "type": "string", "enum": ["ADMIN", "USER"], "example": "ADMIN" }
+        }
+      },
+      "Match": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "66ba429b..." },
+          "name": { "type": "string", "example": "Real Madrid vs Barcelona" },
+          "sport": { "type": "string", "example": "Football" },
+          "status": { "type": "string", "enum": ["UPCOMING", "LIVE", "COMPLETED"], "example": "LIVE" },
+          "startTime": { "type": "string", "format": "date-time", "example": "2026-08-12T18:00:00.000Z" },
+          "socketEnabled": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateMatchRequest": {
+        "type": "object",
+        "required": ["name", "sport", "status", "startTime"],
+        "properties": {
+          "name": { "type": "string", "example": "Lakers vs Warriors" },
+          "sport": { "type": "string", "example": "Basketball" },
+          "status": { "type": "string", "enum": ["UPCOMING", "LIVE", "COMPLETED"], "example": "UPCOMING" },
+          "startTime": { "type": "string", "example": "2026-08-12T20:00:00.000Z" },
+          "socketEnabled": { "type": "boolean", "default": true }
+        }
+      },
+      "GlobalSettings": {
+        "type": "object",
+        "properties": {
+          "updateInterval": { "type": "number", "example": 3000, "description": "Broadcast interval in milliseconds" },
+          "dataType": { "type": "string", "enum": ["SCORE", "FULL", "STATISTICS"], "example": "SCORE" },
+          "binary": { "type": "boolean", "example": true },
+          "compression": { "type": "boolean", "example": true },
+          "socketEnabled": { "type": "boolean", "example": true }
+        }
+      },
+      "MatchSettings": {
+        "type": "object",
+        "properties": {
+          "matchId": { "type": "string", "example": "66ba429b..." },
+          "useGlobalDefaults": { "type": "boolean", "example": true },
+          "updateInterval": { "type": "number", "example": 3000 },
+          "dataType": { "type": "string", "enum": ["SCORE", "FULL", "STATISTICS"], "example": "SCORE" },
+          "binary": { "type": "boolean", "example": true },
+          "compression": { "type": "boolean", "example": true },
+          "socketEnabled": { "type": "boolean", "example": true }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "Invalid username or password" }
+        }
+      }
+    }
+  }
+}

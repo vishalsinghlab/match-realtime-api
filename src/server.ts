@@ -14,6 +14,12 @@ import cookieParser from 'cookie-parser';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { authenticateSocket } from './modules/auth/socket-auth.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
+import swaggerUi from 'swagger-ui-express';
+import { readFileSync } from 'node:fs';
+
+const swaggerDocument = JSON.parse(
+    readFileSync(new URL('./swagger.json', import.meta.url), 'utf-8'),
+);
 
 const app = express();
 
@@ -67,6 +73,8 @@ app.use('/api', (req, res, next) => {
 app.use('/api/auth', authRouter);
 
 app.use('/api/admin', adminRouter);
+
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.get('/api/health', (_req, res) => {
     res.json({
