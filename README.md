@@ -105,6 +105,8 @@ On first database boot, the server automatically seeds the following credentials
 
 ## Realtime Architecture & Pub/Sub
 
+> 📖 **Visual Architecture Diagrams**: See [docs/ARCHITECTURE_DIAGRAMS.md](file:///c:/Users/user/Desktop/match-realtime-app/backend/match-realtime-api/docs/ARCHITECTURE_DIAGRAMS.md) for full system, sequence, and data pipeline diagrams.
+
 ```text
 Publisher Engine ---> MessagePack ---> Compression ---> Redis Pub/Sub ---> Socket.IO Gateway ---> Angular Client
 ```

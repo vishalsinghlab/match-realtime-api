@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { publishMatchUpdate } from './redis.service.js';
+import { realtimePublisher } from './realtime.publisher.js';
 
 interface MatchUpdate {
     matchId: string;
@@ -27,7 +28,7 @@ export const initializeSocketServer = (io: Server): void => {
             `Authenticated socket connected: ${socket.id} (User: ${session?.userId ?? 'unknown'})`,
         );
 
-        socket.on('match:join', (matchId: string) => {
+        socket.on('match:join', async (matchId: string) => {
             if (!matchId) {
                 return;
             }
@@ -43,6 +44,8 @@ export const initializeSocketServer = (io: Server): void => {
                 });
             }
 
+            await realtimePublisher.start(matchId);
+
             console.log(`${socket.id} joined ${room}`);
 
             socket.emit('match:joined', {
@@ -56,6 +59,7 @@ export const initializeSocketServer = (io: Server): void => {
             const clients = io.sockets.adapter.rooms.get(room);
             if (!clients || clients.size === 0) {
                 matchScores.delete(matchId);
+                realtimePublisher.stop(matchId);
                 console.log(`Cleaned up empty match room state: ${room}`);
             }
         };

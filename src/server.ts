@@ -87,18 +87,8 @@ app.use('/api/matches', matchRoutes);
 
 initializeSocketServer(io);
 
-setInterval(async () => {
-    const activeMatchIds = getActiveMatchIds();
-
-    for (const matchId of activeMatchIds) {
-        await sendSampleMatchUpdate(matchId);
-    }
-}, 10 * 1000);
-
 import { seedDefaultUsers } from './modules/auth/auth.service.js';
-import { RealtimePublisher } from './modules/realtime/realtime.publisher.js';
-
-const realtimePublisher = new RealtimePublisher();
+import { realtimePublisher } from './modules/realtime/realtime.publisher.js';
 
 const startServer = async (): Promise<void> => {
     await connectDatabase();

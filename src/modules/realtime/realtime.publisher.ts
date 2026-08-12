@@ -139,3 +139,5 @@ export class RealtimePublisher {
         return base;
     }
 }
+
+export const realtimePublisher = new RealtimePublisher();
