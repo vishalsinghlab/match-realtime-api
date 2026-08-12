@@ -27,6 +27,54 @@ export const connectRedis = async (): Promise<void> => {
     console.log('Redis connected');
 };
 
+export interface RedisSessionData {
+    id: string;
+    userId: string;
+    role: 'ADMIN' | 'USER';
+    expiresAt: number;
+}
+
+export const saveSessionInRedis = async (session: RedisSessionData, ttlSeconds: number = 3600): Promise<void> => {
+    const key = `session:${session.id}`;
+    await publisher.set(key, JSON.stringify(session), { EX: ttlSeconds });
+};
+
+export const getSessionFromRedis = async (sessionId: string): Promise<RedisSessionData | null> => {
+    const key = `session:${sessionId}`;
+    const data = await publisher.get(key);
+    if (!data) return null;
+    try {
+        return JSON.parse(data) as RedisSessionData;
+    } catch {
+        return null;
+    }
+};
+
+export const deleteSessionFromRedis = async (sessionId: string): Promise<void> => {
+    const key = `session:${sessionId}`;
+    await publisher.del(key);
+};
+
+export const publishConfigUpdated = async (matchId: string, settings: unknown): Promise<void> => {
+    await publisher.publish(
+        'config:updated',
+        JSON.stringify({ matchId, settings, timestamp: Date.now() })
+    );
+};
+
+export const subscribeToConfigUpdates = async (
+    callback: (matchId: string, settings: unknown) => void
+): Promise<void> => {
+    await subscriber.subscribe('config:updated', (message) => {
+        try {
+            const data = JSON.parse(message);
+            callback(data.matchId, data.settings);
+        } catch (error) {
+            console.error('Failed to parse config:updated message:', error);
+        }
+    });
+};
+
 export const publishMatchUpdate = async (
     matchId: string,
     data: unknown,

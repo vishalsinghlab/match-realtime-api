@@ -87,10 +87,18 @@ setInterval(async () => {
     }
 }, 10 * 1000);
 
+import { seedDefaultUsers } from './modules/auth/auth.service.js';
+import { RealtimePublisher } from './modules/realtime/realtime.publisher.js';
+
+const realtimePublisher = new RealtimePublisher();
+
 const startServer = async (): Promise<void> => {
     await connectDatabase();
+    await seedDefaultUsers();
 
     await connectRedis();
+
+    realtimePublisher.initConfigListener();
 
     await subscribeToMatchUpdates((matchId, binaryData) => {
         io.to(`match:${matchId}`).emit(

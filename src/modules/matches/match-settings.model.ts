@@ -4,6 +4,8 @@ export interface MatchSettingsDocument
     extends mongoose.Document {
     matchId: string;
 
+    useGlobalDefaults: boolean;
+
     updateInterval: number;
 
     dataType:
@@ -25,6 +27,11 @@ const matchSettingsSchema =
                 type: String,
                 required: true,
                 unique: true,
+            },
+
+            useGlobalDefaults: {
+                type: Boolean,
+                default: true,
             },
 
             updateInterval: {

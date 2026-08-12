@@ -3,7 +3,35 @@ import type { Request, Response } from 'express';
 import {
     getMatchSettings,
     updateMatchSettings,
+    getGlobalSettings,
+    updateGlobalSettings,
 } from './match-settings.service.js';
+
+export const getGlobalSettingsCtrl = async (
+    _req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const settings = await getGlobalSettings();
+        res.json(settings);
+    } catch (error) {
+        console.error('Failed to get global settings:', error);
+        res.status(500).json({ message: 'Failed to get global settings' });
+    }
+};
+
+export const updateGlobalSettingsCtrl = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const settings = await updateGlobalSettings(req.body);
+        res.json(settings);
+    } catch (error) {
+        console.error('Failed to update global settings:', error);
+        res.status(500).json({ message: 'Failed to update global settings' });
+    }
+};
 
 export const getSettings = async (
     req: Request,

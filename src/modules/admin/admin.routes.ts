@@ -5,6 +5,8 @@ import { requireRole } from '../auth/role.middleware.js';
 import {
     getSettings,
     updateSettings,
+    getGlobalSettingsCtrl,
+    updateGlobalSettingsCtrl,
 } from './match-settings.controller.js';
 
 export const adminRouter = Router();
@@ -18,6 +20,8 @@ adminRouter.get('/test', (_req, res) => {
     });
 });
 
+adminRouter.get('/settings/global', getGlobalSettingsCtrl);
+adminRouter.put('/settings/global', updateGlobalSettingsCtrl);
 
 adminRouter.get(
     '/matches/:matchId/settings',

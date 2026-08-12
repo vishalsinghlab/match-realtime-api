@@ -24,6 +24,44 @@ export const getMatches = async (
     }
 };
 
+export const getMatchById = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const rawId = req.params.matchId;
+        const matchId = Array.isArray(rawId) ? rawId[0] : rawId;
+        if (!matchId) {
+            res.status(400).json({
+                success: false,
+                message: "Match ID is required",
+            });
+            return;
+        }
+
+        const match = await MatchModel.findById(matchId).lean();
+        if (!match) {
+            res.status(404).json({
+                success: false,
+                message: "Match not found",
+            });
+            return;
+        }
+
+        res.json({
+            success: true,
+            data: match,
+        });
+    } catch (error) {
+        console.error("Failed to fetch match:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch match",
+        });
+    }
+};
+
 export const createMatch = async (
     req: Request,
     res: Response,
