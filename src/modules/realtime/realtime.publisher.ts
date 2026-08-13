@@ -1,6 +1,7 @@
 import { MatchSettings } from '../matches/match-settings.model.js';
 import { GlobalSettings } from '../admin/global-settings.model.js';
 import { publishMatchUpdate, subscribeToConfigUpdates } from './redis.service.js';
+import { MatchModel } from '../matches/match.model.js';
 
 interface MatchData {
     matchId: string;
@@ -24,7 +25,7 @@ export class RealtimePublisher {
         this.isListeningConfig = true;
 
         subscribeToConfigUpdates(async (matchId, rawSettings) => {
-            console.log(`[Publisher] Hot-reloading config signal received for: ${matchId}`, rawSettings);
+            // console.log(`[Publisher] Hot-reloading config signal received for: ${matchId}`, rawSettings);
             if (matchId === 'global') {
                 for (const activeId of Array.from(this.timers.keys())) {
                     await this.restart(activeId);
@@ -65,6 +66,16 @@ export class RealtimePublisher {
 
     async restart(matchId: string): Promise<void> {
         this.stop(matchId);
+        try {
+            const match = await MatchModel.findById(matchId).lean();
+            if (!match || match.status !== 'LIVE') {
+                return;
+            }
+        } catch (err) {
+            console.error(`Failed to check match status for ${matchId}:`, err);
+            return;
+        }
+
         const settings = await this.getEffectiveSettings(matchId);
         if (settings.socketEnabled) {
             await this.startWithSettings(matchId, settings);
@@ -76,9 +87,19 @@ export class RealtimePublisher {
             return;
         }
 
+        try {
+            const match = await MatchModel.findById(matchId).lean();
+            if (!match || match.status !== 'LIVE') {
+                return;
+            }
+        } catch (err) {
+            console.error(`Failed to check match status for ${matchId}:`, err);
+            return;
+        }
+
         const settings = await this.getEffectiveSettings(matchId);
         if (!settings.socketEnabled) {
-            console.log(`Socket stream disabled for match ${matchId}`);
+            // console.log(`Socket stream disabled for match ${matchId}`);
             return;
         }
 
@@ -102,7 +123,7 @@ export class RealtimePublisher {
 
         const timer = setInterval(publish, interval);
         this.timers.set(matchId, timer);
-        console.log(`Realtime publisher running for ${matchId} (Interval: ${interval}ms, Type: ${dataType}, GlobalDefaults: ${settings.useGlobalDefaults ?? false})`);
+        // console.log(`Realtime publisher running for ${matchId} (Interval: ${interval}ms, Type: ${dataType}, GlobalDefaults: ${settings.useGlobalDefaults ?? false})`);
     }
 
     stop(matchId: string): void {
@@ -110,7 +131,7 @@ export class RealtimePublisher {
         if (timer) {
             clearInterval(timer);
             this.timers.delete(matchId);
-            console.log(`Realtime publisher stopped for ${matchId}`);
+            // console.log(`Realtime publisher stopped for ${matchId}`);
         }
     }
 
@@ -140,4 +161,4 @@ export class RealtimePublisher {
     }
 }
 
-export const realtimePublisher = new RealtimePublisher();
+export const realtimePublisher = new RealtimePublisher();

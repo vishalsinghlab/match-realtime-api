@@ -64,8 +64,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use('/api', (req, res, next) => {
-    console.log('Cookies received:', req.cookies);
-    console.log('Raw cookie header:', req.headers.cookie);
+    // console.log('Cookies received:', req.cookies);
+    // console.log('Raw cookie header:', req.headers.cookie);
     next();
 });
 
