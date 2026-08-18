@@ -6,9 +6,25 @@ export const getMatches = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const matches = await MatchModel.find()
-            .sort({ startTime: 1 })
-            .lean();
+        const matches = await MatchModel.find().lean();
+        
+        // Priority ranking: LIVE = 1, UPCOMING = 2, COMPLETED = 3
+        const statusPriority: Record<string, number> = { LIVE: 1, UPCOMING: 2, COMPLETED: 3 };
+
+        matches.sort((a, b) => {
+            const priorityA = statusPriority[a.status] ?? 4;
+            const priorityB = statusPriority[b.status] ?? 4;
+
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+
+            // Sort by createdAt descending (newest created fixture first at top of pipeline)
+            const createdA = new Date(a.createdAt || a.startTime).getTime();
+            const createdB = new Date(b.createdAt || b.startTime).getTime();
+
+            return createdB - createdA;
+        });
 
         res.json({
             success: true,

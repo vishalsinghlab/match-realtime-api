@@ -115,7 +115,14 @@ export class RealtimePublisher {
         }
 
         const publish = async () => {
-            const data = this.generateMatchData(matchId, dataType);
+            let sport = 'football';
+            try {
+                const matchDoc = await MatchModel.findById(matchId).lean();
+                if (matchDoc) sport = matchDoc.sport.toLowerCase();
+            } catch (e) {
+                // fallback to football
+            }
+            const data = this.generateMatchData(matchId, dataType, sport);
             await publishMatchUpdate(matchId, data);
         };
 
@@ -123,7 +130,6 @@ export class RealtimePublisher {
 
         const timer = setInterval(publish, interval);
         this.timers.set(matchId, timer);
-        // console.log(`Realtime publisher running for ${matchId} (Interval: ${interval}ms, Type: ${dataType}, GlobalDefaults: ${settings.useGlobalDefaults ?? false})`);
     }
 
     stop(matchId: string): void {
@@ -131,16 +137,21 @@ export class RealtimePublisher {
         if (timer) {
             clearInterval(timer);
             this.timers.delete(matchId);
-            // console.log(`Realtime publisher stopped for ${matchId}`);
         }
     }
 
-    private generateMatchData(matchId: string, dataType: 'SCORE' | 'FULL' | 'STATISTICS'): MatchData {
+    private generateMatchData(matchId: string, dataType: 'SCORE' | 'FULL' | 'STATISTICS', sport: string = 'football'): MatchData {
         const score = this.scores.get(matchId) ?? { home: 0, away: 0 };
-        if (Math.random() > 0.4) {
-            score.home = (score.home + Math.floor(Math.random() * 2)) % 50;
+
+        if (sport.includes('cricket')) {
+            if (Math.random() > 0.3) score.home = score.home + Math.floor(Math.random() * 6);
+            if (Math.random() > 0.6) score.away = score.away + Math.floor(Math.random() * 4);
+        } else if (sport.includes('basket')) {
+            score.home += Math.floor(Math.random() * 3);
+            score.away += Math.floor(Math.random() * 3);
         } else {
-            score.away = (score.away + Math.floor(Math.random() * 2)) % 50;
+            if (Math.random() > 0.6) score.home += 1;
+            if (Math.random() > 0.7) score.away += 1;
         }
 
         const base: MatchData = {
@@ -151,10 +162,70 @@ export class RealtimePublisher {
             dataType,
         };
 
-        if (dataType === 'FULL') {
-            base.meta = { possession: '55% / 45%', venue: 'National Stadium', weather: 'Clear 22°C' };
-        } else if (dataType === 'STATISTICS') {
-            base.meta = { shotsOnTarget: 8, fouls: 11, cornerKicks: 6, yellowCards: 2 };
+        if (sport.includes('cricket')) {
+            const overs = Math.min(20, Math.floor(score.home / 10) + ((score.home % 6) / 10));
+            const wickets = Math.min(10, Math.floor(score.home / 35));
+            base.meta = {
+                sport: 'Cricket',
+                runs: score.home,
+                wickets,
+                overs: overs.toFixed(1),
+                crr: (score.home / Math.max(1, overs || 1)).toFixed(2),
+                rrr: (8.4).toFixed(2),
+                recentBalls: ['4', '1', 'W', '6', '0', '2', '1'].slice(0, 6),
+                striker: { name: 'V. Kohli', runs: 42 + (score.home % 15), balls: 28, fours: 4, sixes: 2 },
+                nonStriker: { name: 'K.L. Rahul', runs: 28, balls: 19, fours: 3, sixes: 1 },
+                bowler: { name: 'J. Bumrah', overs: '3.4', maidens: 0, runs: 26, wickets: 2 }
+            };
+        } else if (sport.includes('basket')) {
+            base.meta = {
+                sport: 'Basketball',
+                quarter: 'Q3',
+                gameClock: '04:22',
+                shotClock: 12,
+                q1: { home: 24, away: 22 },
+                q2: { home: 28, away: 26 },
+                q3: { home: score.home - 52, away: score.away - 48 },
+                fgPct: { home: '48%', away: '44%' },
+                threePtPct: { home: '38%', away: '32%' },
+                rebounds: { home: 34, away: 31 },
+                assists: { home: 22, away: 19 }
+            };
+        } else if (sport.includes('tennis')) {
+            const points = ['0', '15', '30', '40', 'AD'];
+            base.meta = {
+                sport: 'Tennis',
+                setScores: [{ home: 6, away: 4 }, { home: 3, away: 6 }, { home: 4, away: 3 }],
+                gameScore: { home: points[score.home % 5], away: points[score.away % 4] },
+                server: score.home % 2 === 0 ? 'home' : 'away',
+                aces: { home: 9, away: 6 },
+                doubleFaults: { home: 2, away: 4 },
+                breakPointsWon: { home: '3/5', away: '2/4' }
+            };
+        } else if (sport.includes('esport') || sport.includes('gaming')) {
+            base.meta = {
+                sport: 'Esports',
+                mapScore: { home: 1, away: 1 },
+                roundScore: { home: score.home % 16, away: score.away % 16 },
+                currentMap: 'De_Inferno',
+                phase: 'LIVE ROUND',
+                bombStatus: 'PLANTED',
+                economy: { home: '$14,200 (Full Buy)', away: '$4,100 (Eco)' },
+                topFragger: { name: 's1mple', kills: 24, deaths: 11, assists: 5, adr: 104.2 }
+            };
+        } else {
+            const minute = Math.min(90, 15 + Math.floor((Date.now() % 3600000) / 45000));
+            base.meta = {
+                sport: 'Football',
+                minute: `${minute}'`,
+                possession: { home: 56, away: 44 },
+                shots: { home: 12, away: 8 },
+                shotsOnTarget: { home: 5, away: 3 },
+                fouls: { home: 9, away: 11 },
+                yellowCards: { home: 2, away: 1 },
+                redCards: { home: 0, away: 0 },
+                corners: { home: 6, away: 3 }
+            };
         }
 
         return base;
