@@ -69,12 +69,64 @@ export const createMatch = async (
     try {
         const { name, sport, status, startTime, socketEnabled } = req.body;
 
+        if (!name || !sport || !startTime) {
+            res.status(400).json({
+                success: false,
+                message: "Name, sport, and startTime are required.",
+            });
+            return;
+        }
+
+        const startDate = new Date(startTime);
+        if (isNaN(startDate.getTime())) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid start date and time format.",
+            });
+            return;
+        }
+
+        const now = new Date();
+        const initialStatus = status || "UPCOMING";
+
+        // Validate initial status vs startTime relationship
+        if (initialStatus === "UPCOMING") {
+            // Allow 5 minutes grace period for clock skew; UPCOMING must be present or future
+            const minAllowedTime = new Date(now.getTime() - 5 * 60 * 1000);
+            if (startDate < minAllowedTime) {
+                res.status(400).json({
+                    success: false,
+                    message: "An UPCOMING fixture must have a start time in the present or future.",
+                });
+                return;
+            }
+        } else if (initialStatus === "COMPLETED") {
+            // COMPLETED match must have a start time in the past or present
+            if (startDate > now) {
+                res.status(400).json({
+                    success: false,
+                    message: "A COMPLETED fixture cannot have a start time in the future.",
+                });
+                return;
+            }
+        } else if (initialStatus === "LIVE") {
+            // LIVE match start time cannot be scheduled far in the future
+            const maxLiveFuture = new Date(now.getTime() + 30 * 60 * 1000);
+            if (startDate > maxLiveFuture) {
+                res.status(400).json({
+                    success: false,
+                    message: "A LIVE fixture cannot be scheduled far in the future.",
+                });
+                return;
+            }
+        }
+
         const match = await MatchModel.create({
             name,
             sport,
-            status,
-            startTime,
-            socketEnabled,
+            status: initialStatus,
+            startTime: startDate,
+            socketEnabled: socketEnabled ?? true,
         });
 
         res.status(201).json({
